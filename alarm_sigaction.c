@@ -25,8 +25,11 @@ void alarmHandler(int signal)
     printf("Alarm #%d received\n", alarmCount);
 }
 
+
+
+
 int main()
-{
+{   
     // Set alarm function handler.
     // Install the function signal to be automatically invoked when the timer expires,
     // invoking in its turn the user function alarmHandler
@@ -40,7 +43,9 @@ int main()
 
     printf("Alarm configured\n");
 
-    while (alarmCount < 4 )
+    
+
+    while (alarmCount < 4)
     {
         if (alarmEnabled == FALSE)
         {

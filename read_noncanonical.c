@@ -23,6 +23,18 @@
 
 volatile int STOP = FALSE;
 
+enum State
+{
+    START,
+    FLAG_RCV,
+    A_RCV,
+    C_RCV,
+    BCC_OK,
+    STOP
+};
+
+
+
 int main(int argc, char *argv[])
 {
     // Program usage: Uses either COM1 or COM2
@@ -66,8 +78,8 @@ int main(int argc, char *argv[])
 
     // Set input mode (non-canonical, no echo,...)
     newtio.c_lflag = 0;
-    newtio.c_cc[VTIME] = 0; // Inter-character timer unused
-    newtio.c_cc[VMIN] = 5;  // Blocking read until 5 chars received
+    newtio.c_cc[VTIME] = 1; // Inter-character timer unused
+    newtio.c_cc[VMIN] = 0;  // Blocking read until 5 chars received
 
     // VTIME e VMIN should be changed in order to protect with a
     // timeout the reception of the following character(s)
@@ -89,23 +101,53 @@ int main(int argc, char *argv[])
     printf("New termios structure set\n");
 
     // Loop for input
-    unsigned char buf[BUF_SIZE + 1] = {0}; // +1: Save space for the final '\0' char
+    unsigned char byte = 0;
 
-    //while (STOP == FALSE)
-    //{
+    enum State currentState = START;
+
+    const unsigned char FLAG = 0x7E;
+    const unsigned char A = 0x03;
+    const unsigned char C = 0x03;
+    const unsigned char BCC1 = A^C;
+
+    while (STOP == FALSE)
+    {
         // Returns after 5 chars have been input
-        int bytes = read(fd, buf, BUF_SIZE);
-//        buf[bytes] = '\0'; // Set end of string to '\0', so we can printf
+        int bytes = read(fd, byte, 1);
 
-        for(int i = 0; i < BUF_SIZE; i++){
-            printf("buf[%d] = 0x%02X\n", i, buf[i]);
+        
+        switch (currentState)
+        {
+        case START:
+            if(byte == FLAG){
+                currentState = FLAG_RCV;
+            }
+            break;
+        case FLAG_RCV:
+            if(byte == A){
+                currentState = A_RCV;
+            }else if(byte != FLAG){
+                currentState = START;
+            }
+        case A_RCV:
+            if(byte == FLAG){
+                currentState = FLAG_RCV;
+            }else if(byte == C){
+                currentState = C_RCV;
+            }else{
+                currentState = START;
+            }
+        default:
+            break;
         }
+
+        
         
 
         //Buffer has all the bytes that were sent
         //Check for flag
         
-        const unsigned char FLAG = 0x7E;
+        
         int flagReceived = 0;
         unsigned int idx = 0;
 
@@ -136,9 +178,9 @@ int main(int argc, char *argv[])
         }
                 
         
-     /*   if (buf[0] == 'z')
-            STOP = TRUE;*/
-    //}
+        if (buf[0] == 'z')
+            STOP = TRUE;
+    }
 
     // The while() cycle should be changed in order to respect the specifications
     // of the protocol indicated in the Lab guide

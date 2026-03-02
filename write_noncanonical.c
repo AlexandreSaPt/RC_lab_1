@@ -10,6 +10,25 @@
 #include <sys/stat.h>
 #include <termios.h>
 #include <unistd.h>
+#include <signal.h>
+
+
+#define FALSE 0
+#define TRUE 1
+
+int alarmEnabled = FALSE;
+int alarmCount = 0;
+
+// Alarm function handler.
+// This function will run whenever the signal SIGALRM is received.
+void alarmHandler(int signal)
+{
+    alarmEnabled = FALSE;
+    alarmCount++;
+
+    printf("Alarm #%d received\n", alarmCount);
+}
+
 
 // Baudrate settings are defined in <asm/termbits.h>, which is
 // included by <termios.h>
@@ -19,7 +38,7 @@
 #define FALSE 0
 #define TRUE 1
 
-#define BUF_SIZE 256
+#define BUF_SIZE 5
 
 volatile int STOP = FALSE;
 
@@ -68,7 +87,7 @@ int main(int argc, char *argv[])
     // Set input mode (non-canonical, no echo,...)
     newtio.c_lflag = 0;
     newtio.c_cc[VTIME] = 0; // Inter-character timer unused
-    newtio.c_cc[VMIN] = 5;  // Blocking read until 5 chars received
+    newtio.c_cc[VMIN] = 0;  // Blocking read until 5 chars received
 
     // VTIME e VMIN should be changed in order to protect with a
     // timeout the reception of the following character(s)
@@ -86,21 +105,25 @@ int main(int argc, char *argv[])
         perror("tcsetattr");
         exit(-1);
     }
-
     printf("New termios structure set\n");
+
+    // Set alarm function handler.
+    // Install the function signal to be automatically invoked when the timer expires,
+    // invoking in its turn the user function alarmHandler
+    struct sigaction act = {0};
+    act.sa_handler = &alarmHandler;
+    if (sigaction(SIGALRM, &act, NULL) == -1)
+    {
+        perror("sigaction");
+        exit(1);
+    }
+
+    printf("Alarm configured\n");
+
 
     // Create string to send
     unsigned char buf[BUF_SIZE] = {0};
-
-    /*
-   
-
-    for (int i = 0; i < BUF_SIZE; i++)
-    {
-        buf[i] = 'a' + i % 26;
-    }
     
-    */
     buf[0]= 0x7E;
     buf[1]= 0x03;
     buf[2]= 0x03;
@@ -111,17 +134,40 @@ int main(int argc, char *argv[])
     // Test this condition by placing a '\n' in the middle of the buffer.
     // The whole buffer must be sent even with the '\n'.
     buf[5] = '\n';
+    
 
-    int bytes = write(fd, buf, BUF_SIZE);
-    printf("%d bytes written\n", bytes);
+    
+    unsigned char bufR[BUF_SIZE] = {0}; 
+    int flagRec = 0;
+    
+    while (alarmCount < 4 && flagRec == 0)
+    {
+        if (alarmEnabled == FALSE)
+        {   
+            //Trying to send
+            int bytes = write(fd, buf, BUF_SIZE);
+            printf("%d bytes written\n", bytes);
+            printf("Sent data... waiting\n");
 
-    printf("Sent data... waiting\n");
+            alarm(3); // Set alarm to be triggered in 3s
+            alarmEnabled = TRUE;
 
-    unsigned char bufR[BUF_SIZE] = {0};
+            int bytesRead = read(fd, bufR, BUF_SIZE);
+        }
+        if(buf[0] == bufR[0] && bufR[4] == buf[0] && bufR[3]== (bufR[1]^bufR[2])){
+            flagRec = 1;
+            printf("All ok\n");
+            //Disable pending alarms if any
+            alarm(0);
+        }
+    }
 
 
-    int bytesRead = read(fd, bufR, BUF_SIZE);
 
+
+
+
+    /*
     
     int flagRec = 0;
     if(buf[0]==bufR[0] && bufR[3]== (bufR[1]^bufR[2])){
@@ -132,6 +178,7 @@ int main(int argc, char *argv[])
         printf("var = 0x%02X\n", buf[i]);
 
     }
+    */
 
     // Wait until all bytes have been written to the serial port
     sleep(1);
