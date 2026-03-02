@@ -40,7 +40,7 @@ int main()
 
     printf("Alarm configured\n");
 
-    while (alarmCount < 4)
+    while (alarmCount < 4 )
     {
         if (alarmEnabled == FALSE)
         {
