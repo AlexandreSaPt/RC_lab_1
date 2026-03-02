@@ -10,6 +10,8 @@
 #include <sys/stat.h>
 #include <termios.h>
 #include <unistd.h>
+#include "./alarm_sigaction.c"
+
 
 // Baudrate settings are defined in <asm/termbits.h>, which is
 // included by <termios.h>
@@ -68,7 +70,7 @@ int main(int argc, char *argv[])
     // Set input mode (non-canonical, no echo,...)
     newtio.c_lflag = 0;
     newtio.c_cc[VTIME] = 0; // Inter-character timer unused
-    newtio.c_cc[VMIN] = 5;  // Blocking read until 5 chars received
+    newtio.c_cc[VMIN] = 0;  // Blocking read until 5 chars received
 
     // VTIME e VMIN should be changed in order to protect with a
     // timeout the reception of the following character(s)
@@ -112,17 +114,35 @@ int main(int argc, char *argv[])
     // The whole buffer must be sent even with the '\n'.
     buf[5] = '\n';
 
+    
+    //setup Alarm
+    setup();
+
+    
     int bytes = write(fd, buf, BUF_SIZE);
     printf("%d bytes written\n", bytes);
 
     printf("Sent data... waiting\n");
 
     unsigned char bufR[BUF_SIZE] = {0};
-
-
     int bytesRead = read(fd, bufR, BUF_SIZE);
 
-    
+    printf("BytesREad: %d\n",bytesRead);
+
+    while (alarmCount < 4 && bytesRead == 0)
+    {
+
+        if(alarmEnabled == FALSE)
+        {
+            printf("in while\n");   
+            alarm(3); // Set alarm to be triggered in 3s
+            alarmEnabled = TRUE;
+        }
+
+        bytesRead = read(fd, bufR, BUF_SIZE);
+    }
+  
+    //Process 
     int flagRec = 0;
     if(buf[0]==bufR[0] && bufR[3]== (bufR[1]^bufR[2])){
         printf("All doe");
@@ -130,7 +150,6 @@ int main(int argc, char *argv[])
     for(int i = 0; i< bytesRead;i++)
     {
         printf("var = 0x%02X\n", buf[i]);
-
     }
 
     // Wait until all bytes have been written to the serial port
