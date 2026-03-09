@@ -16,8 +16,14 @@
 #define FALSE 0
 #define TRUE 1
 
+#define FLAG 0x7E
+
+//Alarm params
+#define TIMEOUT 3 //seconds
+
+
 int alarmEnabled = FALSE;
-int alarmCount = 0;
+int alarmCount  = 0;
 
 // Alarm function handler.
 // This function will run whenever the signal SIGALRM is received.
@@ -42,24 +48,25 @@ void alarmHandler(int signal)
 
 volatile int STOP = FALSE;
 
-int main(int argc, char *argv[])
-{
+//serial port cenas
+int fd;
+struct termios oldtio;
+void init(int size, char portName[]){
     // Program usage: Uses either COM1 or COM2
-    const char *serialPortName = argv[1];
+    const char *serialPortName = portName;
 
-    if (argc < 2)
+    if (size < 2)
     {
         printf("Incorrect program usage\n"
                "Usage: %s <SerialPort>\n"
                "Example: %s /dev/ttyS1\n",
-               argv[0],
-               argv[0]);
+               portName[0],
+               portName[0]);
         exit(1);
     }
-
     // Open serial port device for reading and writing, and not as controlling tty
     // because we don't want to get killed if linenoise sends CTRL-C.
-    int fd = open(serialPortName, O_RDWR | O_NOCTTY);
+    fd = open(serialPortName, O_RDWR | O_NOCTTY);
 
     if (fd < 0)
     {
@@ -67,7 +74,7 @@ int main(int argc, char *argv[])
         exit(-1);
     }
 
-    struct termios oldtio;
+    
     struct termios newtio;
 
     // Save current port settings
@@ -107,6 +114,7 @@ int main(int argc, char *argv[])
     }
     printf("New termios structure set\n");
 
+
     // Set alarm function handler.
     // Install the function signal to be automatically invoked when the timer expires,
     // invoking in its turn the user function alarmHandler
@@ -119,78 +127,70 @@ int main(int argc, char *argv[])
     }
 
     printf("Alarm configured\n");
+}
 
-
+//Function that fills the headers and computes BCC 
+int create_header(char flag, char A, char C, char buf[]){
     // Create string to send
-    unsigned char buf[BUF_SIZE] = {0};
-    
-    buf[0]= 0x7E;
-    buf[1]= 0x03;
-    buf[2]= 0x03;
+    if(sizeof(buf) < 4){
+        printf("Buffer size wrong");
+        return -1;
+    }
+    buf[0]= flag;
+    buf[1]= A;
+    buf[2]= C;
     buf[3]= buf[1]^buf[2];
-    buf[4]= 0x7E;
-    
-    // In non-canonical mode, '\n' does not end the writing.
-    // Test this condition by placing a '\n' in the middle of the buffer.
-    // The whole buffer must be sent even with the '\n'.
-    buf[5] = '\n';
-    
+}
 
+int send_set_frame(){
+    char buf[5];
+    create_header(FLAG, 0x03, 0x03, buf);
+
+    alarmCount = 0; //global variable
     
-    unsigned char bufR[BUF_SIZE] = {0}; 
-    int flagRec = 0;
-    
-    while (alarmCount < 4 && flagRec == 0)
+    while (alarmCount < 4)
     {
         if (alarmEnabled == FALSE)
         {   
             //Trying to send
-            int bytes = write(fd, buf, BUF_SIZE);
+            int bytes = write(fd, buf, 5);
             printf("%d bytes written\n", bytes);
             printf("Sent data... waiting\n");
 
-            alarm(3); // Set alarm to be triggered in 3s
+            alarm(TIMEOUT); // Set alarm to be triggered in 3s
             alarmEnabled = TRUE;
-
-            int bytesRead = read(fd, bufR, BUF_SIZE);
         }
-        if(buf[0] == bufR[0] && bufR[4] == buf[0] && bufR[3]== (bufR[1]^bufR[2])){
-            flagRec = 1;
-            printf("All ok\n");
-            //Disable pending alarms if any
-            alarm(0);
+
+        char bufReceived[5] = {0};
+        int bytesRead = read(fd, bufReceived, BUF_SIZE);
+        if(bytesRead > 0){
+            for(;bytesRead > 0; bytesRead --){
+                //byte
+                //update state machine
+                //if state == stop
+            }
         }
+
+        //if current state == stop
+        //alarm(0)
+        //break;
     }
+}
 
-
-
-
-
-
-    /*
-    
-    int flagRec = 0;
-    if(buf[0]==bufR[0] && bufR[3]== (bufR[1]^bufR[2])){
-        printf("All doe");
-    }
-    for(int i = 0; i< bytesRead;i++)
-    {
-        printf("var = 0x%02X\n", buf[i]);
-
-    }
-    */
-
+void close(){
     // Wait until all bytes have been written to the serial port
     sleep(1);
-
     // Restore the old port settings
     if (tcsetattr(fd, TCSANOW, &oldtio) == -1)
     {
         perror("tcsetattr");
         exit(-1);
     }
-
-
     close(fd);
+}
+
+
+int main(int argc, char *argv[])
+{
     return 0;
 }
