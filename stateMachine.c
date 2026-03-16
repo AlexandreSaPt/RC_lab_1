@@ -2,17 +2,7 @@
 #include <unistd.h>
 #include <stdint.h>
 #include "Config.h"
-
-uint8_t frameReady;
-
-typedef enum{
-    STATE_START,
-    FLAG_RCV,
-    A_RCV,
-    C_RCV,
-    BCC_OK,
-    STOP
-}STATE;
+#include "stateMachine.h"
 
 void init()
 {
@@ -34,9 +24,9 @@ STATE uptadeSet(uint8_t byte, STATE st)
             {
                 st= FLAG_RCV;
             } 
-            else if(byte == A_SENDER)
+            else if(byte == TRANSMITER)
             {
-                st = C_RCV;
+                st = A_RCV;
             } 
             else{
                 st = STATE_START;
@@ -58,7 +48,7 @@ STATE uptadeSet(uint8_t byte, STATE st)
             {
                 st = FLAG_RCV;
             }
-            uint8_t calc = A_SENDER ^ 0x01;
+            uint8_t calc = TRANSMITER ^ 0x01;
             if(calc == byte)
             {
                 st = BCC_OK;
@@ -74,8 +64,69 @@ STATE uptadeSet(uint8_t byte, STATE st)
             else{
                 st = STATE_START;
             }
+            break;
     }   
-
     return st;  
 }
 
+
+
+STATE uptadeUA(uint8_t byte, STATE st)
+{
+    switch (st){
+
+        case STATE_START:
+            if(byte == FLAG){
+                st= FLAG_RCV;
+            }
+            break;
+
+        case FLAG_RCV:
+            if(byte== FLAG)
+            {
+                st= FLAG_RCV;
+            } 
+            else if(byte == TRANSMITER)
+            {
+                st = A_RCV;
+            } 
+            else{
+                st = STATE_START;
+            }
+            break;
+        case A_RCV:
+            if(byte == FLAG)
+            {
+                st = FLAG_RCV;
+            }
+            else if(byte == 0x07)//UA Cont adress
+            {
+                st = C_RCV;
+            }
+            else st = STATE_START;
+            break;
+        case C_RCV:
+            if(byte == FLAG)
+            {
+                st = FLAG_RCV;
+            }
+            uint8_t calc = TRANSMITER ^ 0x03;
+            if(calc == byte)
+            {
+                st = BCC_OK;
+            }
+            else {
+                st = STATE_START;
+            }
+            break;
+        case BCC_OK:
+            if(byte == FLAG){
+                st = STOP;
+            }
+            else{
+                st = STATE_START;
+            }
+            break;
+    }   
+    return st;  
+}

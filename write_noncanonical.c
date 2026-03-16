@@ -129,6 +129,7 @@ int main(int argc, char *argv[])
 
     printf("BytesREad: %d\n",bytesRead);
 
+    /*
     while (alarmCount < 4 && bytesRead == 0)
     {
 
@@ -140,7 +141,7 @@ int main(int argc, char *argv[])
         }
 
         bytesRead = read(fd, bufR, BUF_SIZE);
-    }
+    }*/
   
     //Process 
     int flagRec = 0;
