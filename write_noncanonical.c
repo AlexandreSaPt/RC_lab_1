@@ -161,8 +161,8 @@ int send_set_frame(){
             alarmEnabled = TRUE;
         }
 
-        char bufReceived[5] = {0};
-        int bytesRead = read(fd, bufReceived, BUF_SIZE);
+        char byte;
+        int bytesRead = read(fd, byte, 1);
         if(bytesRead > 0){
             for(;bytesRead > 0; bytesRead --){
                 //byte
