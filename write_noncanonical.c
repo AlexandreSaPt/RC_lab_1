@@ -164,11 +164,9 @@ int send_set_frame(){
         char byte;
         int bytesRead = read(fd, byte, 1);
         if(bytesRead > 0){
-            for(;bytesRead > 0; bytesRead --){
-                //byte
-                //update state machine
-                //if state == stop
-            }
+            //byte
+            //update state machine
+            //if state == stop
         }
 
         //if current state == stop
