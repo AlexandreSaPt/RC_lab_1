@@ -60,8 +60,8 @@ int llopen(int argc, char *argv[])
     unsigned char uaFrame[5] = {
         FLAG,
         TRANSMITER,
-        0x03,                   
-        TRANSMITER ^ 0x03,
+        0x07,                   
+        TRANSMITER ^ 0x07,
         FLAG
     };
 
@@ -84,7 +84,7 @@ int llopen(int argc, char *argv[])
             current_state = updateSupervisionFrame(byte, current_state, false);
             if(current_state == STOP)
             {
-                return 0;//all correct! 
+                break;
             } 
         } 
     }
