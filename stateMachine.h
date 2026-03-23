@@ -6,7 +6,7 @@
 #include <stdint.h>
 #include "Config.h"
 
-uint8_t frameReady;
+//uint8_t frameReady;
 
 typedef enum{
     STATE_START,

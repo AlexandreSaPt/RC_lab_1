@@ -67,6 +67,8 @@ STATE updateSupervisionFrame(uint8_t byte, STATE st, bool isTx)
                 st = STATE_START;
             }
             break;
+        case STOP:
+            break;
     }   
     return st;  
 }

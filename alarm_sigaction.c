@@ -19,6 +19,7 @@ int alarmCount = 0;
 // This function will run whenever the signal SIGALRM is received.
 void alarmHandler(int signal)
 {
+    (void)signal;  // Suppress unused parameter warning
     alarmEnabled = FALSE;
     alarmCount++;
 

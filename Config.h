@@ -13,7 +13,7 @@ typedef struct {
     uint8_t adress;
     uint8_t control;
     uint8_t bcc1;
-    uint8_t frameReady;
+    //uint8_t frameReady;
 }Frame;
 
 

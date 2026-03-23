@@ -1,5 +1,3 @@
-#ifndef TX_DATALINK_H
-#define TX_DATALINK_H
 
 #include <fcntl.h>
 #include <stdio.h>
@@ -10,11 +8,9 @@
 #include <termios.h>
 #include <unistd.h>
 #include "alarm_sigaction.h" 
+#include "tx_datalink.h"
 #include "stateMachine.h"
 
-
-#define BUF_SIZE 256
-#define BAUDRATE B38400
 
 struct termios oldtio;
 STATE current_state = STATE_START;
@@ -73,7 +69,7 @@ int llopen(int argc, char *argv[])
 
     setup();//setup the alarm! 
 
-    unsigned char bufR[BUF_SIZE] = {0};
+    //unsigned char bufR[BUF_SIZE] = {0};
     
     
     while (alarmCount < 4 && current_state != STOP)//read 5 bytes! 
@@ -101,14 +97,22 @@ int llopen(int argc, char *argv[])
     }
     // === FAILED ===
     printf("Failed to receive UA after %d retries\n", alarmCount);
+    alarm(0);//reset alarm! 
     close(fd);
+    
     return -1;  
 }
 
 
-int llwrite()
+int llwrite(unsigned char *data, uint8_t size)
 {
-    
+    if(size <= 0 || data == NULL) return -1;
+
+    //1. Compute BCC
+    //
+
+
+    return 0;
 }
 
 /*
@@ -167,4 +171,3 @@ int setup_termios(int fd)
 }
 
 
-#endif
