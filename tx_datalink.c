@@ -1,4 +1,5 @@
 
+#include <stdint.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -7,6 +8,7 @@
 #include <sys/stat.h>
 #include <termios.h>
 #include <unistd.h>
+#include "Config.h"
 #include "alarm_sigaction.h" 
 #include "tx_datalink.h"
 #include "stateMachine.h"
@@ -88,7 +90,7 @@ int llopen(int argc, char *argv[])
         if(read(fd, &byte, 1) > 0)
         {
             printf("received byte, processing...\n");
-            current_state = updateSupervisionFrame(byte, current_state, true);
+            current_state = updateReceiveSM(byte, current_state, FLAG ,TRANSMITER, 0x03);
             if(current_state == STOP)
             {
                 return 0;//all correct! 
@@ -104,16 +106,47 @@ int llopen(int argc, char *argv[])
     return -1;  
 }
 
-
+/*
+User data is packed into frames, which can be of three types
+» Information (I), Supervision (S) and Unnumbered (U
+I-have payload space
+*/
 int llwrite(unsigned char *data, uint8_t size)
 {
     if(size <= 0 || data == NULL) return -1;
+    uint8_t bcc2 = 0;
+    uint8_t temp_buf[size];
 
-    //1. Compute BCC
-    //
+    for(int i = 0; i<size;i++)
+    {
+        bcc2 ^= data[i]; 
+        temp_buf[i] = data[i];
+    }
+
+
+    //check if bcc is present in the data trama
+    int pos = 0;
+
+    for(int i = 0; i<size;i++)
+    {
+        if(bcc2 == data[i])
+        {
+            pos = i;
+            break; 
+        }
+    }
+    printf("%d",pos);
 
 
     return 0;
+}
+
+int transparency(char *data, uint8_t size, uint8_t flag)
+{
+
+
+    return 0;
+
 }
 
 /*
