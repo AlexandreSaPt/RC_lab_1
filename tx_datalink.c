@@ -90,12 +90,12 @@ int llopen(int argc, char *argv[])
             current_state = updateSupervisionFrame(byte, current_state, true);
             if(current_state == STOP)
             {
-                alarm(0);//reset alarm! 
                 return 0;//all correct! 
             } 
         } 
     }
     // === FAILED ===
+    alarm(0);//reset alarm! 
     printf("Failed to receive UA after %d retries\n", alarmCount);
     alarm(0);//reset alarm! 
     close(fd);
