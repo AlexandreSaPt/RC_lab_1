@@ -18,6 +18,6 @@ typedef enum{
 }STATE;
 
 void init();
-STATE updateSupervisionFrame(uint8_t byte, STATE st,bool isTx);
+void updateSupervisionFrame(uint8_t byte, STATE *st,bool isTx);
 
 #endif
