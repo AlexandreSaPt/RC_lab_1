@@ -8,6 +8,7 @@
 #include <sys/stat.h>
 #include <termios.h>
 #include <unistd.h>
+#include "Config.h"
 #include "alarm_sigaction.h" 
 #include "stateMachine.h"
 
@@ -81,7 +82,7 @@ int llopen(int argc, char *argv[])
         uint8_t byte = 0;
         if(read(fd, &byte, 1) > 0)
         {
-            current_state = updateSupervisionFrame(byte, current_state, false);
+            current_state = updateRxFrame(byte, current_state, FLAG, TRANSMITER, 0x07);
             if(current_state == STOP)
             {
                 break;
