@@ -101,7 +101,7 @@ int llopen(int argc, char *argv[])
 }
 
 
-int llwrite()
+int llread()
 {
     
 }
