@@ -87,6 +87,7 @@ int llopen(int argc, char *argv[])
         uint8_t byte = 0;
         if(read(fd, &byte, 1) > 0)
         {
+            printf("received byte, processing...\n");
             current_state = updateSupervisionFrame(byte, current_state, true);
             if(current_state == STOP)
             {

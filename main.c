@@ -1,4 +1,5 @@
 #include "tx_datalink.h"
+#include <stdio.h>
 
 /*
 Compile: gcc 
