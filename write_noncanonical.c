@@ -146,7 +146,7 @@ int create_header(char flag, char A, char C, char buf[]){
 }
 
 /**
- * @return -1 if alarmcount >= 4 (mudar para const value)
+ * @return -1 if alarm count >= 4 (mudar para const value)
  */
 int send_set_frame_N_wait(){
     char buf[5];
@@ -168,7 +168,7 @@ int send_set_frame_N_wait(){
         }
 
         char byte;
-        int bytesRead = read(fd, byte, 1);
+        int bytesRead = read(fd, &byte, 1);
         if(bytesRead > 0){
             //byte
             //update state machine
@@ -186,7 +186,7 @@ int send_set_frame_N_wait(){
     return -1;
 }
 
-void close(){
+void close_fd(){
     // Wait until all bytes have been written to the serial port
     sleep(1);
     // Restore the old port settings
@@ -210,7 +210,7 @@ int main(int argc, char *argv[])
     }else{
         printf("Set frame sent and UA received");
     }
-    
+    close_fd();
 
 
     return 0;
