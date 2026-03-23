@@ -82,7 +82,7 @@ int llopen(int argc, char *argv[])
         uint8_t byte = 0;
         if(read(fd, &byte, 1) > 0)
         {
-            current_state = updateRxFrame(byte, current_state, FLAG, TRANSMITER, 0x07);
+            current_state = updateReceiveSM(byte, current_state, FLAG, TRANSMITER, 0x07);
             if(current_state == STOP)
             {
                 break;
