@@ -27,7 +27,7 @@ llopen
 » sends SET frame
 » reads one byte at a time to receive UA frame (see state machine in slide 40)
 » returns success or failure*/
-llopen(int argc, char *argv[])
+int llopen(int argc, char *argv[])
 {
     //openSerialPort:
     // Program usage: Uses either COM1 or COM2
@@ -57,16 +57,16 @@ llopen(int argc, char *argv[])
         return -1; 
     }
 
-    //SEND SET Frame! 
-    unsigned char buf[BUF_SIZE] = {0};
+    
+    unsigned char setFrame[5] = {
+        FLAG,
+        TRANSMITER,
+        0x03,                   
+        TRANSMITER ^ 0x03,
+        FLAG
+    };
 
-    buf[0]= 0x7E;
-    buf[1]= 0x03;
-    buf[2]= 0x03;//Control! 
-    buf[3]= buf[1]^buf[2];// BCC
-    buf[4]= 0x7E;//FLAG! 
-
-    int bytes = write(fd, buf, BUF_SIZE);
+    int bytes = write(fd, setFrame, 5);
     printf("%d bytes written\n", bytes);
 
     printf("Sent data... waiting\n");
@@ -74,33 +74,39 @@ llopen(int argc, char *argv[])
     setup();//setup the alarm! 
 
     unsigned char bufR[BUF_SIZE] = {0};
-    int bytesRead = read(fd, bufR, 5);
-    while (alarmCount < 4 && bytesRead == 0)
+    
+    
+    while (alarmCount < 4 && current_state != STOP)//read 5 bytes! 
     {
-        if(alarmEnabled == FALSE)
-        {
-            printf("in while\n");   
-            alarm(3); // Set alarm to be triggered in 3s
+        if (alarmEnabled == FALSE) {
+            alarm(3);
             alarmEnabled = TRUE;
-            //send again the SetFrame:
-            write(fd, buf, BUF_SIZE);
+
+            if (alarmCount > 0) { 
+                write(fd, setFrame, 5);
+                printf("Timeout → SET frame resent (retry %d/3)\n", alarmCount);
+            }
         }
 
-        uint8_t byteRead;
-        bytesRead = read(fd, &byteRead, 1);
-        current_state = updateUA(byteRead,current_state);
-        
-        if(current_state == STOP)
+        uint8_t byte = 0;
+        if(read(fd, &byte, 1) > 0)
         {
-            alarm(0);//reset alarm! 
-            return 0;//all correct! 
+            current_state = updateSupervisionFrame(byte, current_state, true);
+            if(current_state == STOP)
+            {
+                alarm(0);//reset alarm! 
+                return 0;//all correct! 
+            } 
         } 
     }
-    if(bytesRead == 0 || alarmCount == 3) return -2;//-2 means did not get message!     
+    // === FAILED ===
+    printf("Failed to receive UA after %d retries\n", alarmCount);
+    close(fd);
+    return -1;  
 }
 
 
-llwrite()
+int llwrite()
 {
     
 }
@@ -145,7 +151,7 @@ int setup_termios(int fd)
 
     // --- CRITICAL FIX FOR YOUR STATE MACHINE ---
     newtio.c_cc[VTIME] = 0; // Do not use the termios timer
-    newtio.c_cc[VMIN] = 0;  // Block read() until exactly 1 byte arrives
+    newtio.c_cc[VMIN] = 0;  // Block read() until exactly 0 byte arrives
 
     tcflush(fd, TCIOFLUSH);
 

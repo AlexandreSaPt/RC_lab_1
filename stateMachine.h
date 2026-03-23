@@ -1,9 +1,10 @@
 #ifndef STATEMACHINE_H
 #define STATEMACHINE_H
 
-
-
-
+#include <stdbool.h>
+#include <unistd.h>
+#include <stdint.h>
+#include "Config.h"
 
 uint8_t frameReady;
 
@@ -17,6 +18,6 @@ typedef enum{
 }STATE;
 
 void init();
-STATE updateSet(uint8_t byte, STATE st);
-STATE updateUA(uint8_t byte, STATE st);
+STATE updateSupervisionFrame(uint8_t byte, STATE st,bool isTx);
+
 #endif
