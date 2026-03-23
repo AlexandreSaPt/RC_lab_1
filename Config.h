@@ -7,6 +7,7 @@
 #define TRANSMITER 0x03 //either command or response
 #define RECEIVER 0x01 //either command or response
 
+#define DATA_PACKET_SIZE 1000 //Bytes
 
 typedef struct {
     uint8_t flag;
