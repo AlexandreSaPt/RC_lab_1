@@ -12,6 +12,9 @@
 #include <unistd.h>
 #include <signal.h>
 
+//Igor
+#include "stateMachine.h"
+
 
 #define FALSE 0
 #define TRUE 1
@@ -142,12 +145,15 @@ int create_header(char flag, char A, char C, char buf[]){
     buf[3]= buf[1]^buf[2];
 }
 
-int send_set_frame(){
+/**
+ * @return -1 if alarmcount >= 4 (mudar para const value)
+ */
+int send_set_frame_N_wait(){
     char buf[5];
     create_header(FLAG, 0x03, 0x03, buf);
 
     alarmCount = 0; //global variable
-    
+    STATE currentState = STATE_START;
     while (alarmCount < 4)
     {
         if (alarmEnabled == FALSE)
@@ -166,13 +172,18 @@ int send_set_frame(){
         if(bytesRead > 0){
             //byte
             //update state machine
-            //if state == stop
+            updateSupervisionFrame(byte, &currentState, 1);
         }
 
-        //if current state == stop
-        //alarm(0)
-        //break;
+        if (currentState == STOP){
+            break;
+        }
     }
+    alarm(0); //O alarme tem de ser resetado independentemente de ter sido erro ou não
+    if (alarmCount < 4){
+        return 0;
+    }
+    return -1;
 }
 
 void close(){
@@ -190,5 +201,17 @@ void close(){
 
 int main(int argc, char *argv[])
 {
+    init(argc, argv);
+    int timeout = send_set_frame_N_wait();
+    if (timeout == -1)
+    {
+        //ent deu timeout
+        printf("Timeout sending SET frame");
+    }else{
+        printf("Set frame sent and UA received");
+    }
+    
+
+
     return 0;
 }
