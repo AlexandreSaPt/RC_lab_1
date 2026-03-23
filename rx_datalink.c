@@ -17,7 +17,7 @@
 #define BAUDRATE B38400
 
 struct termios oldtio;
-STATE current_state = STATE_START;
+int fd;
 
 int setup_termios(int fd);
 
@@ -46,7 +46,7 @@ int llopen(int argc, char *argv[])
 
     // Open serial port device for reading and writing, and not as controlling tty
     // because we don't want to get killed if linenoise sends CTRL-C.
-    int fd = open(serialPortName, O_RDWR | O_NOCTTY);
+    fd = open(serialPortName, O_RDWR | O_NOCTTY);
     if (fd < 0)
     {
         perror(serialPortName);
@@ -69,6 +69,7 @@ int llopen(int argc, char *argv[])
 
     setup();//setup the alarm! 
     
+    STATE current_state  = STATE_START;
     alarmEnabled = FALSE;
     alarmCount = 0;
     while (alarmCount < 4 && current_state != STOP)//read 5 bytes! 
@@ -82,7 +83,7 @@ int llopen(int argc, char *argv[])
         uint8_t byte = 0;
         if(read(fd, &byte, 1) > 0)
         {
-            current_state = updateReceiveSM(byte, current_state, FLAG, TRANSMITER, 0x07);
+            current_state = updateReceiveSM(byte, current_state, (uint8_t) FLAG, TRANSMITER, 0x07);
             if(current_state == STOP)
             {
                 break;
@@ -102,8 +103,40 @@ int llopen(int argc, char *argv[])
 }
 
 
-int llread()
-{
+int llread(char bufChunk[DATA_PACKET_SIZE])
+{    
+    STATE current_state = STATE_START;
+    alarmEnabled = FALSE;
+    alarmCount = 0;
+    while (alarmCount < 4)//read bytes! 
+    {
+        if (alarmEnabled == FALSE) {
+            alarm(3);
+            alarmEnabled = TRUE;
+            printf("Waiting for I Frame - Try number %d\n", alarmCount);
+        }
+
+        uint8_t byte = 0;
+        if(read(fd, &byte, 1) > 0)
+        {
+            current_state = updateReceiveSM(byte, current_state, (uint8_t) FLAG, TRANSMITER, 0x00);
+            if(current_state == BCC_OK)
+            {
+                printf("Received I frame header...\n Preparing to read data packets...\n");
+                
+            } 
+        } 
+    }
+    alarm(0);//reset alarm! 
+    if (current_state == BCC_OK){
+        
+        int bytes = write(fd, uaFrame, 5);
+        return 0;
+    }
+    // === FAILED ===
+    printf("Failed to receive SET after %d retries\n", alarmCount);
+    close(fd);
+    return -1;  
     
 }
 
