@@ -8,24 +8,23 @@ void init()
     //maybe update or set the state 
 }
 
-STATE updateSupervisionFrame(uint8_t byte, STATE st, bool isTx)
-{
-    uint8_t expected_C   = isTx ? 0x07 : 0x03;          
-    uint8_t expected_BCC = TRANSMITER ^ expected_C; 
+STATE updateRxFrame(uint8_t byte, STATE st, uint8_t flag, uint8_t a, uint8_t c)
+{        
+    uint8_t expected_BCC = a ^ c; 
     switch (st){
 
         case STATE_START:
-            if(byte == FLAG){
+            if(byte == flag){
                 st= FLAG_RCV;
             }
             break;
 
         case FLAG_RCV:
-            if(byte== FLAG)
+            if(byte== flag)
             {
                 st= FLAG_RCV;
             } 
-            else if(byte == TRANSMITER)
+            else if(byte == a)
             {
                 st = A_RCV;
             } 
@@ -35,11 +34,11 @@ STATE updateSupervisionFrame(uint8_t byte, STATE st, bool isTx)
             break;
         case A_RCV:
 
-            if(byte == FLAG)
+            if(byte == flag)
             {
                 st = FLAG_RCV;
             }
-            else if(byte == expected_C)
+            else if(byte == c)
             {
                 st = C_RCV;
             }
@@ -47,7 +46,7 @@ STATE updateSupervisionFrame(uint8_t byte, STATE st, bool isTx)
             break;
 
         case C_RCV:
-            if(byte == FLAG)
+            if(byte == flag)
             {
                 st = FLAG_RCV;
             }
@@ -60,7 +59,7 @@ STATE updateSupervisionFrame(uint8_t byte, STATE st, bool isTx)
             }
             break;
         case BCC_OK:
-            if(byte == FLAG){
+            if(byte == flag){
                 st = STOP;
             }
             else{
