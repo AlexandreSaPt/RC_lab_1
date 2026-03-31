@@ -14,7 +14,8 @@ typedef enum{
     A_RCV,
     C_RCV,
     BCC_OK,
-    STOP
+    STOP,
+    READ_DATA
 }STATE;
 
 void init();
