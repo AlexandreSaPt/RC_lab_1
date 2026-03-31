@@ -22,6 +22,10 @@
 #define RR0 0x05
 #define RR1 0x85
 
+#define DISC 0x0B
+#define UA 0x07
+
+
 
 int alarmEnabled = FALSE;
 int alarmCount  = 0;
@@ -157,6 +161,11 @@ int wait_set_frame(int fd){
     }
 }
 
+/**
+ * @return 
+ * \n -1 -> not able to sent all
+ * \n 0 -> ok
+ */
 int send_ua(int fd){
     alarmCount = 0; //global variable
     alarmEnabled = 0; //global variable
@@ -171,18 +180,23 @@ int send_ua(int fd){
     //Trying to send
     int bytes = write(fd, buf, 5);
     printf("%d bytes written\n", bytes);
-    printf("Sent data... waiting\n");
+    
+    if(bytes != 5){
+        return -1;
+    }
     //PROBLEM -> NOT RETRY LOGGIC
     //Não sei ainda como vou fazer
     //pq ler I frame em si tem de estar no llread,
     //então terei de receber o número de bytes lidos pelo llread e se há erro no primeiro para reenviar o UA frame
-
+    return 0;
 }
 
 /**
  * @return 
  * \n -1 -> buffer demasiado pequeno
  * \n -2 -> max retries excedida
+ * \n -3 -> erro de BCC2
+ * \n NUMBER OF BYTES READ -> sucesso
  */
 int llread(int fd, char* buf){
     if(sizeof(buf) < MAX_FRAME){
@@ -204,6 +218,7 @@ int llread(int fd, char* buf){
     STATE currentState = STATE_START;
 
     uint8_t bufCounter = 0;
+    uint8_t BCC2_tracker = 0;
     while (1)
     {
         if (alarmEnabled == FALSE)
@@ -229,6 +244,12 @@ int llread(int fd, char* buf){
         }
         if (currentState == BCC_OK){
             //receiving data
+            if (bufCounter == 0) //ou seja, primeiro valor 
+            {
+                BCC2_tracker = byte;
+            }else{
+                BCC2_tracker = BCC2_tracker ^ byte;
+            }            
             buf[bufCounter] = byte;
             bufCounter++;
             alarm(0); //como recebeu com sucesso, é pra resetar os alarmes
@@ -237,11 +258,142 @@ int llread(int fd, char* buf){
         }
         if (currentState == STOP){
             alarm(0);
-            return bufCounter;
+            //check BCC2
+            if (buf[bufCounter - 1] == BCC2_tracker)
+            {
+                return bufCounter;
+            }
+            return -3;            
         }
         if(alarmCount > MAX_ALARM_COUNT_RX){
             alarm(0);
             return -2;
         }
     }
+}
+
+
+
+ //Não é preciso fazer distinção entre receiver e transmitter?
+ //Porque um espera pelo DISC antes de mandar
+ /**
+  * @return 
+  * 0 ok -> closed with success
+  * -1 -> sent DISC but did not receive DISC
+  * -3 -> error writing UA
+  */
+int llclose(int fd, bool isTransmitter){
+    alarmEnabled = 0; //global variable
+    alarmCount = 0; //global variable
+
+    char bufDISC[5];
+
+    bufDISC[0] = FLAG;
+    bufDISC[1] = 0x03;
+    bufDISC[2] = 0x0B;
+    bufDISC[3] = bufDISC[1] ^ bufDISC[2];
+    bufDISC[4] = FLAG;
+
+    STATE currentState = STATE_START;
+
+    
+    if (isTransmitter)
+    {    
+        while (1)
+        {
+            if (alarmEnabled == FALSE)
+            {   
+                int bytes = write(fd, bufDISC, 5);
+                printf("DISC frame sent. %d bytes written\n", bytes);
+
+                alarm(TIMEOUT_RECEIVER); // Set alarm to be triggered in 3s
+                alarmEnabled = TRUE;
+            }
+
+            char byte;
+            int bytesRead = read(fd, &byte, 1);
+            if(bytesRead > 0){
+                //byte
+                //update state machine
+                updateSupervisionFrame(byte, &currentState, 1); //ESTA FUNÇÃO VAI SER BUÉ GERAL E LEVAR COM A E C COMO 
+                //neste caso, do DISC
+            }
+            if (currentState == STOP){
+                alarm(0);
+                break;
+            }
+            if(alarmCount > MAX_ALARM_COUNT_RX){
+                alarm(0);
+                return -1;
+            }
+        }
+        //enviou DISC e recebeu DISC
+        if(send_ua(fd) < 0){
+            return -3;
+        }
+        return 0;
+    }else{
+        while (1)
+        {
+            if (alarmEnabled == FALSE)
+            {   
+                alarm(TIMEOUT_RECEIVER); // Set alarm to be triggered in 3s
+                alarmEnabled = TRUE;
+            }
+
+            char byte;
+            int bytesRead = read(fd, &byte, 1);
+            if(bytesRead > 0){
+                //byte
+                //update state machine
+                updateSupervisionFrame(byte, &currentState, 1); //ESTA FUNÇÃO VAI SER BUÉ GERAL E LEVAR COM A E C COMO 
+                //neste caso, do DISC
+            }
+            if (currentState == STOP){
+                alarm(0);
+                break;
+            }
+            if(alarmCount > MAX_ALARM_COUNT_RX){
+                alarm(0);
+                return -1;
+            }
+        }
+        //recebeu DISC
+
+        //send DISC
+        int bytes = write(fd, bufDISC, 5);
+        printf("DISC frame sent. %d bytes written\n", bytes);
+
+
+        //receber UA
+        alarmEnabled = 0;
+        while (1)
+        {
+            if (alarmEnabled == FALSE)
+            {   
+                alarm(TIMEOUT_RECEIVER); // Set alarm to be triggered in 3s
+                alarmEnabled = TRUE;
+            }
+
+            char byte;
+            int bytesRead = read(fd, &byte, 1);
+            if(bytesRead > 0){
+                //byte
+                //update state machine
+                updateSupervisionFrame(byte, &currentState, 1); //ESTA FUNÇÃO VAI SER BUÉ GERAL E LEVAR COM A E C COMO 
+                //neste caso, do DISC
+            }
+            if (currentState == STOP){
+                alarm(0);
+                break;
+            }
+            if(alarmCount > MAX_ALARM_COUNT_RX){
+                alarm(0);
+                return -1;
+            }
+        }
+        //recebeu UA
+        return 0;
+    }
+
 }
